@@ -4,7 +4,7 @@ Aplicativo independente para macOS que importa sua lista do Shazam, busca versõ
 
 ## Instalar no Mac
 
-Baixe o arquivo **Delivery Desktop-0.1.0-arm64.dmg** na seção **Releases** deste repositório. Abra o instalador e arraste **Delivery Desktop** para **Aplicativos**. Esta versão é para Macs com Apple Silicon (M1 ou posterior).
+Baixe o arquivo **Delivery Desktop-0.1.0-arm64.dmg** na seção [**Releases**](https://github.com/bernardo-kra/DJDeliveryDesktop/releases/latest) deste repositório. Abra o instalador e arraste **Delivery Desktop** para **Aplicativos**. Esta versão é para Macs com Apple Silicon (M1 ou posterior).
 
 Depois, abra pelo Finder ou pelo Spotlight. Não precisa de VS Code, Terminal ou Node.js para usar o aplicativo instalado. Para fixar no Dock: botão direito no ícone → **Opções → Manter no Dock**.
 
@@ -37,7 +37,7 @@ O código do app não solicita nem armazena sua senha. O login acontece no próp
 Requisitos: Node.js 22 ou superior; macOS para testar a importação direta do Shazam.
 
 ```sh
-git clone <URL-do-repositorio>
+git clone https://github.com/bernardo-kra/DJDeliveryDesktop.git
 cd DJDeliveryDesktop
 npm ci
 npm test
