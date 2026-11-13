@@ -2,6 +2,8 @@ const api = window.delivery;
 const list = document.querySelector('#downloads');
 let current = { downloads: [], folder: '' };
 let activePanel = 'tracks';
+let settingsDraft;
+const settingsDialog = document.querySelector('#settings-dialog');
 const statuses = { progressing: 'Baixando', completed: 'Concluído', cancelled: 'Cancelado', interrupted: 'Interrompido — inicie novamente pelo site' };
 const bytes = value => `${(value / 1024 / 1024).toFixed(1)} MB`;
 const draftVersions = new Map();
@@ -44,6 +46,7 @@ async function action(callback, success = '') {
 
 function render(state = current) {
   current = state;
+  if (state.settings && !state.settings.setupComplete && !settingsDialog.open) openSettings();
   renderTracks();
   document.querySelector('#folder-path').textContent = state.folder;
   document.querySelector('#count').textContent = state.downloads.length;
@@ -82,7 +85,8 @@ function render(state = current) {
 }
 document.querySelector('#site').onclick = () => action(() => api.openSite());
 document.querySelector('#arrange-windows').onclick = () => action(() => api.arrangeWindows());
-document.querySelector('#choose').onclick = () => action(() => api.chooseFolder());
+document.querySelector('#choose').onclick = openSettings;
+document.querySelector('#settings').onclick = openSettings;
 document.querySelector('#folder').onclick = () => action(() => api.openFolder());
 document.querySelector('#logout').onclick = () => action(() => { closePreview(); return api.logout(); }, 'Conta desconectada deste aplicativo.');
 document.querySelector('#search').oninput = () => render();
@@ -134,11 +138,13 @@ function renderTracks() {
   const query = document.querySelector('#track-search').value.toLocaleLowerCase();
   const job = current.job || {};
   const busy = Boolean(job.running || current.importingShazam);
+  document.querySelector('#settings').disabled = busy;
+  document.querySelector('#choose').disabled = busy;
   const pendingSelected = tracks.filter(track => track.selected && !completedDownload(track));
   const readySelected = pendingSelected.filter(track => ['matched', 'confirmed'].includes(track.match?.status));
-  document.querySelector('#download-tracks').hidden = !readySelected.length;
+  document.querySelector('#download-tracks').hidden = !readySelected.length || !current.settings?.setupComplete;
   document.querySelector('#download-tracks').textContent = `Baixar (${readySelected.length})`;
-  document.querySelector('#auto-tracks').hidden = !pendingSelected.length;
+  document.querySelector('#auto-tracks').hidden = !pendingSelected.length || !current.settings?.setupComplete;
   document.querySelector('#download-availability').textContent = readySelected.length ? ''
     : pendingSelected.length ? 'Busque as músicas ou escolha uma versão para baixar.'
     : tracks.length && tracks.every(track => completedDownload(track)) ? 'Todas as versões escolhidas já foram baixadas.' : '';
@@ -310,3 +316,50 @@ new MutationObserver(() => {
   clearTimeout(messageTimer);
   if (document.querySelector('#message').textContent) messageTimer = setTimeout(() => { document.querySelector('#message').textContent = ''; }, 7000);
 }).observe(document.querySelector('#message'), { childList: true, characterData: true, subtree: true });
+
+
+function openSettings() {
+  if (!current.settings || settingsDialog.open) return;
+  settingsDraft = { ...current.settings };
+  const firstRun = !current.settings.setupComplete;
+  document.querySelector('#settings-title').textContent = firstRun ? 'Vamos configurar seu app' : 'Configurações';
+  document.querySelector('#settings-description').textContent = firstRun
+    ? 'Escolha onde suas músicas serão salvas. As preferências são exclusivas deste usuário.'
+    : 'As alterações valem para os próximos downloads. Os arquivos existentes não serão movidos.';
+  document.querySelector('#settings-folder').value = settingsDraft.folder;
+  document.querySelector('#settings-shazam').value = settingsDraft.shazamDatabase || '';
+  document.querySelector('#settings-arrange').checked = settingsDraft.arrangeWindows;
+  document.querySelector('#settings-error').textContent = current.settingsNotice || '';
+  document.querySelector('#cancel-settings').hidden = firstRun;
+  document.querySelector('#save-settings').textContent = firstRun ? 'Salvar e começar' : 'Salvar configurações';
+  settingsDialog.showModal();
+}
+settingsDialog.addEventListener('cancel', event => { if (!current.settings?.setupComplete) event.preventDefault(); });
+document.querySelector('#cancel-settings').onclick = () => settingsDialog.close();
+document.querySelector('#pick-settings-folder').onclick = async () => {
+  try {
+    const folder = await api.pickDownloadFolder();
+    if (folder) { settingsDraft.folder = folder; document.querySelector('#settings-folder').value = folder; }
+  } catch (error) { document.querySelector('#settings-error').textContent = error.message; }
+};
+document.querySelector('#pick-settings-shazam').onclick = async () => {
+  try {
+    const database = await api.pickShazamDatabase();
+    if (database) { settingsDraft.shazamDatabase = database; document.querySelector('#settings-shazam').value = database; }
+  } catch (error) { document.querySelector('#settings-error').textContent = error.message; }
+};
+document.querySelector('#auto-settings-shazam').onclick = () => {
+  settingsDraft.shazamDatabase = null; document.querySelector('#settings-shazam').value = '';
+};
+document.querySelector('#settings-form').onsubmit = async event => {
+  event.preventDefault();
+  const controls = [...document.querySelectorAll('#settings-form button, #settings-form input')];
+  controls.forEach(control => { control.disabled = true; });
+  document.querySelector('#settings-error').textContent = '';
+  try {
+    await api.saveSettings({ folder: settingsDraft.folder, shazamDatabase: settingsDraft.shazamDatabase,
+      arrangeWindows: document.querySelector('#settings-arrange').checked });
+    render(await api.state()); settingsDialog.close();
+  } catch (error) { document.querySelector('#settings-error').textContent = error.message; }
+  finally { controls.forEach(control => { control.disabled = false; }); }
+};

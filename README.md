@@ -4,9 +4,19 @@ Aplicativo independente para macOS que importa sua lista do Shazam, busca versõ
 
 ## Instalar no Mac
 
-[**Baixar instalador para macOS Apple Silicon (.dmg)**](https://github.com/bernardo-kra/DJDeliveryDesktop/releases/download/v0.1.0/Delivery.Desktop-0.1.0-arm64.dmg). O checksum está na seção [**Releases**](https://github.com/bernardo-kra/DJDeliveryDesktop/releases/latest). Abra o instalador e arraste **Delivery Desktop** para **Aplicativos**. Esta versão é para Macs com Apple Silicon (M1 ou posterior).
+[**Baixar instalador para macOS Apple Silicon (.dmg)**](https://github.com/bernardo-kra/DJDeliveryDesktop/releases/download/v0.2.0/Delivery.Desktop-0.2.0-arm64.dmg). O checksum está na seção [**Releases**](https://github.com/bernardo-kra/DJDeliveryDesktop/releases/latest). Abra o instalador e arraste **Delivery Desktop** para **Aplicativos**. Esta versão é para Macs com Apple Silicon (M1 ou posterior).
 
 Depois, abra pelo Finder ou pelo Spotlight. Não precisa de VS Code, Terminal ou Node.js para usar o aplicativo instalado. Para fixar no Dock: botão direito no ícone → **Opções → Manter no Dock**.
+
+## Configuração inicial
+
+No primeiro uso, o app abre **Vamos configurar seu app**. Escolha uma pasta de downloads e clique em **Salvar e começar**. A sugestão inicial é a pasta Downloads do próprio usuário; nenhum caminho pessoal do desenvolvedor é incluído no instalador.
+
+Em **Mais preferências**, é possível escolher um banco do Shazam manualmente (o padrão é a detecção automática neste Mac) e ativar ou desativar a abertura do catálogo lado a lado. Depois, altere essas opções em **⋯ → Configurações** ou **Salvar em → Escolher pasta**. As configurações são salvas em `settings.json`, no perfil local do usuário, separado da biblioteca e da sessão.
+
+Quem atualiza de uma versão anterior mantém sua pasta, biblioteca, exclusões e login. A pasta antiga é migrada automaticamente. Se um disco estiver desconectado ou a pasta não permitir escrita, o app interrompe o download e pede que a pasta seja corrigida nas configurações; ele não recria caminhos de discos ausentes.
+
+O diretório de perfil é obtido pelo sistema operacional, e o histórico do Shazam é procurado na pasta pessoal do usuário atual. Endereços do serviço e limites internos de busca são constantes do app, não dados específicos de um computador.
 
 ## Usar
 

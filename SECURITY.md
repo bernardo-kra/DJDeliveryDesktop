@@ -7,3 +7,5 @@ O app autentica no próprio DJ Delivery e utiliza a sessão local do navegador. 
 O instalador deve conter somente o código e os recursos declarados em `build.files` no `package.json`. Não empacote o perfil do usuário. Publique apenas o instalador limpo e seu checksum.
 
 Para relatar um problema, descreva o comportamento sem anexar o perfil do app ou links de download que contenham dados de sessão.
+
+Preferências de pastas e do banco do Shazam são salvas em `settings.json` dentro do perfil local. Esse arquivo é ignorado pelo Git e não é incluído no instalador. Novas instalações passam pela configuração inicial e nunca recebem caminhos ou credenciais de outro usuário.

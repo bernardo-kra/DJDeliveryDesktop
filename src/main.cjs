@@ -8,6 +8,7 @@ const { searchTrack, ORIGIN } = require('./catalog.cjs');
 const { previewHandler } = require('./preview.cjs');
 const { windowLayout } = require('./window-layout.cjs');
 const { availableFile, findDownloaded, selectedDownload } = require('./download-status.cjs');
+const { defaultSettings, normalizeSettings, loadSettings, writeSettings, validateDownloadFolder } = require('./settings.cjs');
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'delivery-preview', privileges: {
   standard: true, secure: true, supportFetchAPI: true, stream: true
@@ -16,6 +17,9 @@ protocol.registerSchemesAsPrivileged([{ scheme: 'delivery-preview', privileges: 
 let dashboard;
 let config;
 let stateFile;
+let settingsFile;
+let settings;
+let settingsNotice = '';
 let siteSession;
 const active = new Map();
 const reserved = new Set();
@@ -57,7 +61,7 @@ function snapshot() {
     candidates: (track.match.candidates || []).map(candidate => ({ ...candidate,
       downloadedId: findDownloaded(config.downloads, candidate, stat)?.id || null }))
   } : undefined }));
-  return { folder: config.folder, downloads, tracks, job,
+  return { folder: settings.folder, settings, settingsNotice, downloads, tracks, job,
     importingShazam, removedCount: config.excludedTracks?.length || 0,
     undoRemovalCount: config.lastRemovalIds?.length || (config.excludedTracks?.length ? 1 : 0) };
 }
@@ -124,7 +128,7 @@ function openSite(url = HOME, reuse = true) {
   view.webContents.loadURL(url).catch(() => {
     job.message = 'Não foi possível abrir o catálogo. Confira a conexão e use Recarregar no site.'; publish();
   });
-  if (reuse) arrangeWindows(win);
+  if (reuse && settings.arrangeWindows) arrangeWindows(win);
 }
 
 function registerDownloads() {
@@ -136,8 +140,9 @@ function registerDownloads() {
       if (pending && (!/^(audio\/|application\/(octet-stream|force-download|download|x-download))/i.test(item.getMimeType()))) {
         item.cancel(); pending.reject(new Error('O site não retornou um arquivo de áudio. Verifique login e limite de downloads.')); return;
       }
-      fs.mkdirSync(config.folder, { recursive: true });
-      const destination = availablePath(config.folder, item.getFilename(), fs.existsSync, reserved);
+      if (!settings.setupComplete) throw new Error('Conclua a configuração inicial para baixar músicas.');
+      validateDownloadFolder(settings.folder);
+      const destination = availablePath(settings.folder, item.getFilename(), fs.existsSync, reserved);
       reserved.add(destination);
       const record = {
         id: randomUUID(), name: path.basename(destination), path: destination,
@@ -248,13 +253,22 @@ function createDashboard() {
 app.whenReady().then(() => {
   if (!ownsProfile) return;
   stateFile = path.join(app.getPath('userData'), 'downloads.json');
-  config = { folder: path.join(app.getPath('downloads'), 'DJ Delivery'), downloads: [] };
+  config = { downloads: [] };
   if (fs.existsSync(stateFile)) {
     try {
       const saved = JSON.parse(fs.readFileSync(stateFile, 'utf8'));
-      if (typeof saved.folder === 'string' && Array.isArray(saved.downloads)) config = saved;
+      if (Array.isArray(saved.downloads)) config = saved;
     } catch { /* Keep the original file until the next successful write. */ }
   }
+  settingsFile = path.join(app.getPath('userData'), 'settings.json');
+  try {
+    settings = loadSettings(settingsFile, app.getPath('downloads'), config.folder);
+    if (!fs.existsSync(settingsFile)) writeSettings(settingsFile, settings);
+  } catch {
+    settings = defaultSettings(app.getPath('downloads'));
+    settingsNotice = 'Não foi possível ler suas configurações. Escolha novamente a pasta e salve para continuar.';
+  }
+  delete config.folder;
   config.downloads.forEach(record => {
     if (record.status === 'progressing') record.status = 'interrupted';
   });
@@ -297,6 +311,10 @@ app.whenReady().then(() => {
     if (!['search', 'download', 'automatic'].includes(mode)) throw new Error('Operação inválida.');
     if (job.running) throw new Error('Já existe uma operação em andamento.');
     if (importingShazam) throw new Error('Aguarde a importação terminar.');
+    if (mode !== 'search') {
+      if (!settings.setupComplete) throw new Error('Conclua a configuração inicial antes de baixar.');
+      validateDownloadFolder(settings.folder);
+    }
     const tracks = config.tracks.filter(track => track.selected && !selectedDownload(config.downloads, track)
       && (mode !== 'download' || ['matched', 'confirmed'].includes(track.match?.status)));
     if (!tracks.length) { job.message = 'Nenhuma faixa pendente para esta operação. As versões já baixadas foram ignoradas.'; publish(); return; }
@@ -326,7 +344,7 @@ app.whenReady().then(() => {
     if (importingShazam) throw new Error('A importação já está em andamento.');
     importingShazam = true; publish();
     try {
-      const result = await importShazam(app.getPath('home'), config.tracks, config.excludedTracks.map(track => track.id));
+      const result = await importShazam(app.getPath('home'), config.tracks, config.excludedTracks.map(track => track.id), settings.shazamDatabase);
       config.tracks = result.tracks;
       save(); publish();
       return { records: result.records, added: result.added, total: result.tracks.length };
@@ -379,15 +397,37 @@ app.whenReady().then(() => {
     await fs.promises.writeFile(result.filePath, '\uFEFF' + csv, 'utf8');
     return true;
   });
-  handle('choose-folder', async () => {
+  handle('pick-download-folder', async () => {
     const result = await dialog.showOpenDialog(dashboard, {
-      title: 'Pasta para músicas', properties: ['openDirectory', 'createDirectory']
+      title: 'Escolha onde salvar suas músicas', defaultPath: settings.folder,
+      properties: ['openDirectory', 'createDirectory']
     });
-    if (!result.canceled) { config.folder = result.filePaths[0]; save(); publish(); }
+    return result.canceled ? null : result.filePaths[0];
+  });
+  handle('pick-shazam-database', async () => {
+    const result = await dialog.showOpenDialog(dashboard, {
+      title: 'Selecione o banco de histórico do Shazam', properties: ['openFile'],
+      filters: [{ name: 'Banco do Shazam', extensions: ['sqlite', 'db'] }]
+    });
+    return result.canceled ? null : result.filePaths[0];
+  });
+  handle('save-settings', async value => {
+    if (active.size || pendingDownloads.size || job.running || importingShazam) throw new Error('Aguarde ou pare a operação antes de alterar as configurações.');
+    if (!value || typeof value.folder !== 'string' || !path.isAbsolute(value.folder)
+      || typeof value.arrangeWindows !== 'boolean'
+      || (value.shazamDatabase !== null && (typeof value.shazamDatabase !== 'string' || !path.isAbsolute(value.shazamDatabase)))) {
+      throw new Error('Configurações inválidas. Escolha os caminhos pelos botões de seleção.');
+    }
+    const next = normalizeSettings({ ...value, setupComplete: true }, defaultSettings(app.getPath('downloads')));
+    validateDownloadFolder(next.folder, true);
+    if (next.shazamDatabase) await importShazam(app.getPath('home'), [], [], next.shazamDatabase);
+    writeSettings(settingsFile, next);
+    settings = next; settingsNotice = ''; publish();
   });
   handle('open-folder', async () => {
-    fs.mkdirSync(config.folder, { recursive: true });
-    const error = await shell.openPath(config.folder);
+    if (!settings.setupComplete) throw new Error('Conclua a configuração inicial para abrir sua pasta.');
+    validateDownloadFolder(settings.folder);
+    const error = await shell.openPath(settings.folder);
     if (error) throw new Error(error);
   });
   handle('show-file', id => {

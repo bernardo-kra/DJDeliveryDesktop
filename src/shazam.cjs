@@ -25,15 +25,21 @@ function mergeTracks(existing, rows, excludedIds = []) {
   return [...tracks.values()].sort((a, b) => (b.identifiedAt || '').localeCompare(a.identifiedAt || ''));
 }
 
-async function importShazam(home, existing = [], excludedIds = []) {
+async function importShazam(home, existing = [], excludedIds = [], databasePath = null) {
   if (process.platform !== 'darwin') throw new Error('A leitura direta do Shazam está disponível no macOS.');
-  const groups = path.join(home, 'Library', 'Group Containers');
-  let directories;
-  try { directories = await fs.promises.readdir(groups); }
-  catch { throw new Error('Não foi possível acessar a biblioteca do Shazam neste Mac.'); }
-  const databases = directories.filter(name => name.endsWith('.group.com.shazam'))
-    .map(name => path.join(groups, name, 'com.shazam.mac.Shazam', 'ShazamDataModel.sqlite')).filter(file => fs.existsSync(file));
-  if (!databases.length) throw new Error('Histórico do aplicativo Shazam não encontrado neste Mac.');
+  let databases;
+  if (databasePath) {
+    if (typeof databasePath !== 'string' || !path.isAbsolute(databasePath) || !fs.existsSync(databasePath)) throw new Error('O banco do Shazam configurado não está disponível. Escolha outro arquivo ou use a detecção automática em Configurações.');
+    databases = [databasePath];
+  } else {
+    const groups = path.join(home, 'Library', 'Group Containers');
+    let directories;
+    try { directories = await fs.promises.readdir(groups); }
+    catch { throw new Error('Não foi possível acessar a biblioteca do Shazam neste Mac.'); }
+    databases = directories.filter(name => name.endsWith('.group.com.shazam'))
+      .map(name => path.join(groups, name, 'com.shazam.mac.Shazam', 'ShazamDataModel.sqlite')).filter(file => fs.existsSync(file));
+  }
+  if (!databases.length) throw new Error('Histórico do Shazam não encontrado neste Mac. Abra o Shazam ou escolha o banco manualmente em Configurações.');
   const rows = [];
   for (const file of databases) {
     try {
