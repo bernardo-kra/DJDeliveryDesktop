@@ -46,6 +46,7 @@ async function action(callback, success = '') {
 
 function render(state = current) {
   current = state;
+  renderQuota();
   if (state.settings && !state.settings.setupComplete && !settingsDialog.open) openSettings();
   renderTracks();
   document.querySelector('#folder-path').textContent = state.folder;
@@ -217,7 +218,7 @@ function renderTracks() {
         const placeholder = document.createElement('option'); placeholder.value = ''; placeholder.textContent = 'Selecione uma versão para ouvir…'; select.append(placeholder);
         for (const candidate of track.match.candidates) {
           const option = document.createElement('option'); option.value = String(candidate.id);
-          option.textContent = `${candidate.artist} — ${candidate.title}`;
+          option.textContent = `${candidate.artist} — ${candidate.title}${candidate.sectionName ? ` · ${candidate.sectionName}` : ""}`;
           if (candidateDownload(candidate)) option.textContent += ' · ✓ Já baixada';
           select.append(option);
         }
@@ -363,3 +364,44 @@ document.querySelector('#settings-form').onsubmit = async event => {
   } catch (error) { document.querySelector('#settings-error').textContent = error.message; }
   finally { controls.forEach(control => { control.disabled = false; }); }
 };
+
+
+function renderQuota() {
+  const balance = current.quota || {};
+  const button = document.querySelector('#quota-button');
+  const sections = balance.sections || [];
+  button.textContent = sections.some(section => section.availableBytes === 0 || !section.allowed) ? 'Saldo · atenção' : 'Saldo de downloads';
+  document.querySelector('#quota-status').textContent = balance.status === 'ready'
+    ? `Atualizado às ${new Date(balance.checkedAt).toLocaleTimeString('pt-BR', { hour: '2-digit', minute: '2-digit' })}`
+    : balance.message || 'Entre no catálogo e atualize para consultar o saldo da sua conta.';
+  const container = document.querySelector('#quota-sections'); container.replaceChildren();
+  for (const section of sections) {
+    const row = document.createElement('div'); row.className = 'quota-section';
+    const name = document.createElement('strong'); name.textContent = section.name;
+    const value = document.createElement('span');
+    value.textContent = section.availableBytes === null ? 'Saldo não informado' : formatQuotaBytes(section.availableBytes) + ' disponíveis';
+    const validity = document.createElement('small');
+    validity.textContent = !section.allowed || (section.hoursLeft !== null && section.hoursLeft <= 0) ? 'Plano sem acesso ativo'
+      : section.expiresOn ? `Válido até ${section.expiresOn.split('-').reverse().join('/')}` : 'Validade não informada';
+    row.append(name, value, validity); container.append(row);
+  }
+}
+document.querySelector('#quota-button').onclick = () => {
+  document.querySelector('#quota-dialog').showModal();
+  document.querySelector('#refresh-quota').click();
+};
+document.querySelector('#close-quota').onclick = () => document.querySelector('#quota-dialog').close();
+document.querySelector('#refresh-quota').onclick = async () => {
+  const button = document.querySelector('#refresh-quota'); button.disabled = true;
+  document.querySelector('#quota-status').textContent = 'Consultando o DJ Delivery…';
+  try { await api.refreshQuota(); render(await api.state()); }
+  catch (error) { document.querySelector('#quota-status').textContent = error.message; }
+  finally { button.disabled = false; }
+};
+
+function formatQuotaBytes(bytes) {
+  const units = ['B', 'KB', 'MB', 'GB'];
+  let value = Math.max(0, bytes), unit = 0;
+  while (value >= 1024 && unit < units.length - 1) { value /= 1024; unit++; }
+  return `${value.toLocaleString('pt-BR', { maximumFractionDigits: 2 })} ${units[unit]}`;
+}

@@ -4,7 +4,7 @@
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; media-src delivery-preview:">
 <title>Delivery Desktop</title><link rel="stylesheet" href="style.css">
 </head><body>
-<header class="app-header"><span class="brand"><span>◉</span> Delivery</span><nav class="tabs" aria-label="Biblioteca"><button id="nav-tracks" class="active" aria-pressed="true">Seleção</button><button id="nav-downloads" aria-pressed="false">Downloads <span id="count">0</span></button></nav><div class="header-actions"><button id="site" class="quiet">Catálogo ↗</button><details class="app-menu menu"><summary aria-label="Opções do aplicativo">⋯</summary><div class="menu-content"><button id="settings">Configurações</button><button id="arrange-windows">Janelas lado a lado</button><button id="export-tracks">Exportar seleção</button><button id="clear-selection">Desmarcar músicas</button><button id="clear-tracks" class="remove-track">Limpar lista do Shazam</button><button id="auto-tracks">Buscar e baixar exatas</button><button id="refresh-files">Verificar arquivos baixados</button><button id="logout">Desconectar conta</button></div></details></div></header>
+<header class="app-header"><span class="brand"><span>◉</span> Delivery</span><nav class="tabs" aria-label="Biblioteca"><button id="nav-tracks" class="active" aria-pressed="true">Seleção</button><button id="nav-downloads" aria-pressed="false">Downloads <span id="count">0</span></button></nav><div class="header-actions"><button id="quota-button" class="quiet">Saldo de downloads</button><button id="site" class="quiet">Catálogo ↗</button><details class="app-menu menu"><summary aria-label="Opções do aplicativo">⋯</summary><div class="menu-content"><button id="settings">Configurações</button><button id="arrange-windows">Janelas lado a lado</button><button id="export-tracks">Exportar seleção</button><button id="clear-selection">Desmarcar músicas</button><button id="clear-tracks" class="remove-track">Limpar lista do Shazam</button><button id="auto-tracks">Buscar e baixar exatas</button><button id="refresh-files">Verificar arquivos baixados</button><button id="logout">Desconectar conta</button></div></details></div></header>
 <main>
   <div class="page-heading"><div><h1 id="page-title">Suas músicas</h1><p id="shazam-summary">Importe seu Shazam para começar.</p></div><button id="import-shazam">Importar Shazam</button></div>
   <section id="selection-panel" aria-label="Músicas do Shazam">
@@ -18,6 +18,11 @@
 </main>
 <p id="message" role="status"></p>
 <section id="preview" class="preview" hidden aria-label="Prévia da música"><div class="preview-info"><p id="preview-title"></p><p id="preview-status" role="status"></p></div><audio id="preview-player" controls preload="none" aria-label="Player de prévia"></audio><button id="close-preview" class="quiet" aria-label="Fechar prévia">✕</button></section>
+<dialog id="quota-dialog" aria-labelledby="quota-title">
+  <h2 id="quota-title">Saldo de downloads</h2><p id="quota-status" role="status"></p><div id="quota-sections"></div>
+  <p class="settings-help">Saldo informado pelo DJ Delivery. Downloads feitos no site ou em outros aparelhos também consomem o plano. O tamanho de versões convertidas pode variar; o servidor determina o consumo final.</p>
+  <div class="settings-buttons"><button id="close-quota" class="quiet">Fechar</button><button id="refresh-quota">Atualizar saldo</button></div>
+</dialog>
 <dialog id="settings-dialog" aria-labelledby="settings-title">
   <form id="settings-form">
     <h2 id="settings-title">Configurações</h2>

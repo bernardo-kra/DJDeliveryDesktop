@@ -4,7 +4,7 @@ Aplicativo independente para macOS que importa sua lista do Shazam, busca versõ
 
 ## Instalar no Mac
 
-[**Baixar instalador para macOS Apple Silicon (.dmg)**](https://github.com/bernardo-kra/DJDeliveryDesktop/releases/download/v0.2.0/Delivery.Desktop-0.2.0-arm64.dmg). O checksum está na seção [**Releases**](https://github.com/bernardo-kra/DJDeliveryDesktop/releases/latest). Abra o instalador e arraste **Delivery Desktop** para **Aplicativos**. Esta versão é para Macs com Apple Silicon (M1 ou posterior).
+[**Baixar instalador para macOS Apple Silicon (.dmg)**](https://github.com/bernardo-kra/DJDeliveryDesktop/releases/download/v0.3.0/Delivery.Desktop-0.3.0-arm64.dmg). O checksum está na seção [**Releases**](https://github.com/bernardo-kra/DJDeliveryDesktop/releases/latest). Abra o instalador e arraste **Delivery Desktop** para **Aplicativos**. Esta versão é para Macs com Apple Silicon (M1 ou posterior).
 
 Depois, abra pelo Finder ou pelo Spotlight. Não precisa de VS Code, Terminal ou Node.js para usar o aplicativo instalado. Para fixar no Dock: botão direito no ícone → **Opções → Manter no Dock**.
 
@@ -86,3 +86,13 @@ A imagem do ícone está em `build/icon.icns`; `build/icon.swift` contém seu de
 - Há configuração de empacotamento para Windows e Linux, mas o instalador validado é o de macOS Apple Silicon.
 
 Este projeto não é afiliado ao DJ Delivery ou ao Shazam.
+
+## Saldo de downloads
+
+O botão **Saldo de downloads**, no topo, consulta o limite e a validade informados pelo DJ Delivery para cada seção do plano. A unidade é volume de dados (GB/MB), conforme o site; não há uma estimativa inventada de quantidade de músicas por token. A sessão precisa estar autenticada no catálogo.
+
+A fila automática consulta o saldo antes de cada solicitação. Saldo esgotado, acesso expirado, seção desconhecida ou falha na verificação interrompem a fila sem iniciar o próximo arquivo. Se o tamanho original é conhecido e confiável, ele também é comparado ao disponível. Resultados antigos sem seção precisam ser buscados novamente.
+
+Conversões para MP3 podem ter tamanho diferente do original; nesses casos, o app não apresenta uma previsão exata de custo. Downloads feitos diretamente no site ou em outros aparelhos também consomem o plano. O servidor decide a autorização e o consumo finais, inclusive se o saldo mudar entre consulta e solicitação. A checagem preventiva do app se aplica à fila automática; downloads iniciados no site são controlados pelo próprio serviço.
+
+O saldo é atualizado ao abrir o catálogo, ao retornar ao app (com cache de até um minuto), após downloads e pelo botão **Atualizar saldo**. Esses dados ficam apenas em memória. Não são salvos na biblioteca, nas configurações ou no repositório.

@@ -3,13 +3,15 @@ const normalize = value => String(value || '').normalize('NFKD').replace(/\p{M}/
 const artistKey = value => String(value || '').split(/\s*(?:&|,|\band\b)\s*/i).map(normalize).filter(Boolean).sort().join('|');
 const titleKey = value => normalize(String(value || '').replace(/\s*\(original mix\)\s*$/i, ''));
 
-function candidateFrom(track) {
+function candidateFrom(track, sectionId = null, sectionName = null) {
   if (!Number.isSafeInteger(track.id) || track.id <= 0 || !track.title || !track.artist) return null;
   const format = track.mp3version ? 'mp3' : track.format;
   if (!['mp3', 'flac', 'wav', 'aiff', 'aif', 'm4a'].includes(format)) return null;
   const subtitle = String(track.subtitle || '').trim();
   const title = `${track.title}${subtitle ? ` (${subtitle})` : ''}`;
   return { id: track.id, title, artist: String(track.artist), format,
+    sectionId: sectionId == null ? null : String(sectionId), sectionName,
+    sizeKnown: !track.mp3version && Number.isFinite(track.filesize) && track.filesize > 0,
     filename: typeof track.filename === 'string' ? track.filename : null, filesize: Number(track.filesize) || null,
     url: `${ORIGIN}/a/ms/track/${track.id}/download/${format}` };
 }
@@ -17,7 +19,7 @@ function candidateFrom(track) {
 function classify(wanted, candidates, truncated = false) {
   const groups = new Map();
   for (const candidate of new Map(candidates.map(candidate => [candidate.id, candidate])).values()) {
-    const key = JSON.stringify([artistKey(candidate.artist), titleKey(candidate.title), candidate.format]);
+    const key = JSON.stringify([artistKey(candidate.artist), titleKey(candidate.title), candidate.format, candidate.sectionId || null]);
     const group = groups.get(key);
     if (group) group.copies++;
     else groups.set(key, { ...candidate, copies: 1 });
@@ -54,7 +56,7 @@ async function searchTrack(fetch, wanted, stopped = () => false) {
       if (data.albums != null && !Array.isArray(data.albums)) throw new Error('O formato do catálogo mudou.');
       const albums = data.albums || [];
       for (const album of albums) for (const item of album.tracks || []) {
-        const candidate = candidateFrom(item);
+        const candidate = candidateFrom(item, album.section_id, album.section_nm || null);
         if (candidate) candidates.push(candidate);
       }
       seenAlbums += albums.length;

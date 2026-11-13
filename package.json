@@ -1,6 +1,6 @@
 {
   "name": "dj-delivery-desktop",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "private": true,
   "description": "Gerenciador local dos seus downloads autorizados do DJ Delivery",
   "main": "src/main.cjs",

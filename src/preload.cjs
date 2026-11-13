@@ -1,6 +1,7 @@
 const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('delivery', {
   state: () => ipcRenderer.invoke('get-state'),
+  refreshQuota: () => ipcRenderer.invoke('refresh-quota'),
   openSite: () => ipcRenderer.invoke('open-site'),
   arrangeWindows: () => ipcRenderer.invoke('arrange-windows'),
   selectAllTracks: selected => ipcRenderer.invoke('select-all-tracks', selected),

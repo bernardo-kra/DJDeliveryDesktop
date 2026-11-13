@@ -8,6 +8,7 @@ const { searchTrack, ORIGIN } = require('./catalog.cjs');
 const { previewHandler } = require('./preview.cjs');
 const { windowLayout } = require('./window-layout.cjs');
 const { availableFile, findDownloaded, selectedDownload } = require('./download-status.cjs');
+const { fetchQuota, checkCandidateQuota } = require('./quota.cjs');
 const { defaultSettings, normalizeSettings, loadSettings, writeSettings, validateDownloadFolder } = require('./settings.cjs');
 
 protocol.registerSchemesAsPrivileged([{ scheme: 'delivery-preview', privileges: {
@@ -21,6 +22,9 @@ let settingsFile;
 let settings;
 let settingsNotice = '';
 let siteSession;
+let quota = { status: 'unknown', sections: [], checkedAt: null };
+let quotaRequest;
+let quotaEpoch = 0;
 const active = new Map();
 const reserved = new Set();
 const siteWindows = new Set();
@@ -61,13 +65,26 @@ function snapshot() {
     candidates: (track.match.candidates || []).map(candidate => ({ ...candidate,
       downloadedId: findDownloaded(config.downloads, candidate, stat)?.id || null }))
   } : undefined }));
-  return { folder: settings.folder, settings, settingsNotice, downloads, tracks, job,
+  return { folder: settings.folder, settings, settingsNotice, downloads, tracks, job, quota,
     importingShazam, removedCount: config.excludedTracks?.length || 0,
     undoRemovalCount: config.lastRemovalIds?.length || (config.excludedTracks?.length ? 1 : 0) };
 }
 
 function publish() {
   if (dashboard && !dashboard.isDestroyed()) dashboard.webContents.send('state', snapshot());
+}
+
+async function refreshQuota(force = false) {
+  if (quotaRequest) return quotaRequest;
+  if (!force && quota.checkedAt && Date.now() - Date.parse(quota.checkedAt) < 60000) return quota;
+  const epoch = quotaEpoch;
+  quotaRequest = (async () => {
+    try { const fetched = await fetchQuota((...args) => siteSession.fetch(...args)); if (epoch === quotaEpoch) quota = fetched; }
+    catch (error) { if (epoch === quotaEpoch) quota = { status: 'error', sections: [], checkedAt: new Date().toISOString(), message: error.message }; }
+    finally { if (epoch === quotaEpoch) quotaRequest = undefined; publish(); }
+    return quota;
+  })();
+  return quotaRequest;
 }
 
 function showDashboard() {
@@ -125,6 +142,7 @@ function openSite(url = HOME, reuse = true) {
     if (/^https?:\/\//i.test(target)) openSite(target, false);
     return { action: 'deny' };
   });
+  view.webContents.on('did-finish-load', () => { void refreshQuota(true); });
   view.webContents.loadURL(url).catch(() => {
     job.message = 'Não foi possível abrir o catálogo. Confira a conexão e use Recarregar no site.'; publish();
   });
@@ -173,6 +191,7 @@ function registerDownloads() {
         reserved.delete(destination);
         save();
         publish();
+        void refreshQuota(true);
         if (pending) {
           if (status === 'completed') pending.resolve(record);
           else pending.reject(new Error(`Download ${status === 'cancelled' ? 'cancelado' : 'interrompido'}.`));
@@ -186,9 +205,12 @@ function registerDownloads() {
   });
 }
 
-function downloadCandidate(track, candidate) {
+async function downloadCandidate(track, candidate) {
   const prior = findDownloaded(config.downloads, candidate);
   if (prior) return Promise.resolve(prior);
+  const decision = checkCandidateQuota(await refreshQuota(true), candidate);
+  if (stopJob) throw new Error('Operação cancelada.');
+  if (!decision.allowed) throw new Error(decision.message);
   // URLs are built from catalog IDs and an allowlisted format, never from renderer input.
   if (!new RegExp('^https://srv\\.djdelivery\\.com/a/ms/track/[0-9]+/download/(mp3|flac|wav|aiff|aif|m4a)$').test(candidate.url)) {
     return Promise.reject(new Error('Link de download inválido. Busque a faixa novamente.'));
@@ -246,7 +268,7 @@ function createDashboard() {
   });
   dashboard.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
   dashboard.webContents.on('will-navigate', event => event.preventDefault());
-  dashboard.on('focus', () => { if (config) publish(); });
+  dashboard.on('focus', () => { if (config) { publish(); void refreshQuota(); } });
   dashboard.loadFile(path.join(__dirname, 'index.html'));
 }
 
@@ -289,6 +311,7 @@ app.whenReady().then(() => {
     });
   }
   handle('get-state', snapshot);
+  handle('refresh-quota', () => refreshQuota(true));
   handle('open-site', () => openSite());
   handle('arrange-windows', () => { if (!catalogWindow || catalogWindow.isDestroyed()) openSite(); else arrangeWindows(); });
   handle('select-all-tracks', selected => {
@@ -440,6 +463,8 @@ app.whenReady().then(() => {
     if (active.size || job.running) throw new Error('Aguarde ou cancele a operação antes de desconectar.');
     for (const win of siteWindows) win.close();
     await siteSession.clearStorageData();
+    quotaEpoch++; quotaRequest = undefined;
+    quota = { status: 'unknown', sections: [], checkedAt: null }; publish();
     await siteSession.clearCache();
   });
   createDashboard();

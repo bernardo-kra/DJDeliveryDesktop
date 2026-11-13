@@ -53,3 +53,11 @@ test('login inválido e cancelamento falham sem classificar como não encontrado
   await assert.rejects(searchTrack(async () => ({ ok: false, status: 401 }), wanted), /401/);
   await assert.rejects(searchTrack(async () => { throw Error('não deveria buscar'); }, wanted, () => true), /cancelada/);
 });
+
+test('mantém seção e tamanho confiável para verificar franquia sem misturar planos', () => {
+  const a = candidateFrom({ id: 1, title: 'Morena', artist: 'Joutro Mundo', format: 'mp3', filesize: 100 }, 73, 'Releases');
+  const b = candidateFrom({ id: 2, title: 'Morena', artist: 'Joutro Mundo', format: 'mp3', filesize: 100 }, 74, 'Charts');
+  assert.equal(a.sectionId, '73'); assert.equal(a.sizeKnown, true);
+  assert.equal(classify(wanted, [a, b]).status, 'review');
+  assert.equal(candidateFrom({ id: 3, title: 'x', artist: 'y', format: 'aiff', filesize: 10000, mp3version: true }, 73).sizeKnown, false);
+});
