@@ -419,7 +419,7 @@ app.whenReady().then(() => {
       throw new Error('Configurações inválidas. Escolha os caminhos pelos botões de seleção.');
     }
     const next = normalizeSettings({ ...value, setupComplete: true }, defaultSettings(app.getPath('downloads')));
-    validateDownloadFolder(next.folder, true);
+    validateDownloadFolder(next.folder, next.folder === defaultSettings(app.getPath('downloads')).folder);
     if (next.shazamDatabase) await importShazam(app.getPath('home'), [], [], next.shazamDatabase);
     writeSettings(settingsFile, next);
     settings = next; settingsNotice = ''; publish();
