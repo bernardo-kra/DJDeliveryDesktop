@@ -1,0 +1,21 @@
+<!doctype html>
+<html lang="pt-BR"><head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self'; media-src delivery-preview:">
+<title>Delivery Desktop</title><link rel="stylesheet" href="style.css">
+</head><body>
+<header class="app-header"><span class="brand"><span>◉</span> Delivery</span><nav class="tabs" aria-label="Biblioteca"><button id="nav-tracks" class="active" aria-pressed="true">Seleção</button><button id="nav-downloads" aria-pressed="false">Downloads <span id="count">0</span></button></nav><div class="header-actions"><button id="site" class="quiet">Catálogo ↗</button><details class="app-menu menu"><summary aria-label="Opções do aplicativo">⋯</summary><div class="menu-content"><button id="arrange-windows">Janelas lado a lado</button><button id="export-tracks">Exportar seleção</button><button id="clear-selection">Desmarcar músicas</button><button id="clear-tracks" class="remove-track">Limpar lista do Shazam</button><button id="auto-tracks">Buscar e baixar exatas</button><button id="refresh-files">Verificar arquivos baixados</button><button id="logout">Desconectar conta</button></div></details></div></header>
+<main>
+  <div class="page-heading"><div><h1 id="page-title">Suas músicas</h1><p id="shazam-summary">Importe seu Shazam para começar.</p></div><button id="import-shazam">Importar Shazam</button></div>
+  <section id="selection-panel" aria-label="Músicas do Shazam">
+    <div class="filter-row"><input id="track-search" type="search" aria-label="Buscar música ou artista" placeholder="Buscar na seleção"><select id="track-filter" aria-label="Filtrar por situação"><option value="all">Todas</option><option value="review">Para revisar</option><option value="ready">Prontas</option><option value="completed">Já baixadas</option><option value="not_found">Não encontradas</option></select></div>
+    <div class="batch-actions"><div class="selection-actions"><button id="select-all" class="text-button">Selecionar todas</button><span id="selection-count"></span></div><button id="search-tracks">Buscar músicas</button><button id="download-tracks" class="primary">Baixar</button><button id="stop-batch" hidden>Parar</button></div>
+    <p id="download-availability" class="hint"></p><p id="job-status" role="status"></p><button id="undo-remove-track" class="text-button" hidden>↶ Desfazer exclusão</button>
+    <div id="tracks"></div>
+  </section>
+  <section id="downloads-panel" hidden aria-label="Histórico de downloads"><input id="search" type="search" aria-label="Buscar downloads" placeholder="Buscar nos downloads"><div id="downloads" aria-live="polite"></div></section>
+  <details class="folder"><summary><span>Salvar em</span><span id="folder-path"></span><span class="folder-edit">Alterar</span></summary><div class="folder-controls"><button id="choose">Escolher pasta</button><button id="folder" class="quiet">Abrir pasta ↗</button></div></details>
+</main>
+<p id="message" role="status"></p>
+<section id="preview" class="preview" hidden aria-label="Prévia da música"><div class="preview-info"><p id="preview-title"></p><p id="preview-status" role="status"></p></div><audio id="preview-player" controls preload="none" aria-label="Player de prévia"></audio><button id="close-preview" class="quiet" aria-label="Fechar prévia">✕</button></section>
+<script src="renderer.js"></script></body></html>

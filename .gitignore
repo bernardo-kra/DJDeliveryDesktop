@@ -1,0 +1,23 @@
+node_modules/
+dist/
+.DS_Store
+coverage/
+*.log
+.env
+.env.*
+!.env.example
+.local/
+.private/
+*.pem
+*.key
+*.p12
+*.pfx
+*.mobileprovision
+credentials*.json
+downloads.json
+*.sqlite
+*.sqlite-*
+Cookies
+Cookies-*
+Local Storage/
+Session Storage/
